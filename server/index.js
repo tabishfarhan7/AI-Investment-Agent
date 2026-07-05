@@ -1,7 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { researchGraph } from './graph/workflow.js';
+// CHANGED: We now import 'memory' alongside 'researchGraph' so we can initialize the Postgres tables
+import { researchGraph, memory } from './graph/workflow.js'; 
 
 dotenv.config();
 
@@ -94,6 +95,13 @@ app.post('/api/research/resume', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Investment Agent Backend listening securely on port ${PORT}`);
+app.listen(PORT, async () => {
+  try {
+    // Run the required setup to prepare the PostgreSQL database tables
+    await memory.setup(); 
+    console.log(`🗄️ PostgreSQL Checkpointer connected and configured.`);
+    console.log(`🚀 Investment Agent Backend listening securely on port ${PORT}`);
+  } catch (error) {
+    console.error("❌ Failed to initialize PostgreSQL Checkpointer:", error);
+  }
 });

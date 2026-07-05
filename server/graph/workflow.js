@@ -1,5 +1,7 @@
-import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph"; // CHANGED: Added MemorySaver
+import { StateGraph, START, END } from "@langchain/langgraph";
 import { InvestmentState } from "./state.js";
+import pg from "pg"; 
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres"; 
 
 // Import all 5 of our workers
 import { fundamentalsNode } from "./nodes/fundamentals.js";
@@ -8,17 +10,14 @@ import { bullNode } from "./nodes/bull.js";
 import { bearNode } from "./nodes/bear.js";
 import { judgeNode } from "./nodes/judge.js";
 
-// 1. Initialize the Graph Blueprint
 const workflow = new StateGraph(InvestmentState);
 
-// 2. Register all workers into the system
 workflow.addNode("fundamentals", fundamentalsNode);
 workflow.addNode("news", newsNode);
 workflow.addNode("bull", bullNode);
 workflow.addNode("bear", bearNode);
 workflow.addNode("judge", judgeNode);
 
-// 3. Draw the execution arrows (The Workflow)
 workflow.addEdge(START, "fundamentals");
 workflow.addEdge("fundamentals", "news");
 workflow.addEdge("news", "bull");
@@ -26,11 +25,17 @@ workflow.addEdge("bull", "bear");
 workflow.addEdge("bear", "judge");
 workflow.addEdge("judge", END);
 
-// ADDED: Initialize an in-memory checkpointer to persist agent state between steps
-const memory = new MemorySaver();
+// 1. Initialize the PostgreSQL Connection Pool
+const pool = new pg.Pool({
+  connectionString: process.env.POSTGRES_URL,
+});
 
-// 4. Compile into a live engine with a persistent checkpoint interruption
+// 2. Create the PostgreSQL persistent checkpointer
+// Export it so we can run its setup() method when the server starts
+export const memory = new PostgresSaver(pool); 
+
+// 3. Compile the graph with the new database memory
 export const researchGraph = workflow.compile({
   checkpointer: memory,
-  interruptBefore: ["judge"] // Tells the graph engine to freeze state right before invoking the judge
+  interruptBefore: ["judge"]
 });
