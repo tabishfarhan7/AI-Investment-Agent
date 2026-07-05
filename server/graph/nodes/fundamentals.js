@@ -1,14 +1,15 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { webSearchTool } from "../../tools/tavily.js";
 
 export async function fundamentalsNode(state) {
   const { companyName } = state;
   console.log(`[Node: Fundamentals Analyst] Analyzing financial structure for ${companyName}...`);
 
-  // 1. Initialize our brain model
-  const model = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
-    temperature: 0, // 0 means ultra-deterministic and analytical (no creative fluff)
+  // CHANGED: Initialize Gemini model with your API key
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-2.5-flash",
+    apiKey: process.env.GEMINI_API_KEY,
+    temperature: 0, // Keep it at 0 for deterministic financial analysis
   });
 
   // 2. Formulate a highly specific search query for financial metrics

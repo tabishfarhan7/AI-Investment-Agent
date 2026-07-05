@@ -38,6 +38,9 @@ export const InvestmentState = Annotation.Root({
   bullCase: Annotation,
   bearCase: Annotation,
 
+  // ADDED: Populated by human feedback during graph interruption
+  humanOverride: Annotation,
+
   // Populated by the Final Judge Agent (after passing the Zod bouncer above)
   finalVerdict: Annotation
 });

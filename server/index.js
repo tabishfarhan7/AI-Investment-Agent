@@ -1,59 +1,99 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { researchGraph } from './graph/workflow.js';
 
-// Load our environment variables from the .env file
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware configuration
 app.use(cors());
-app.use(express.json()); // Allows our server to read JSON bodies in standard POST requests
+app.use(express.json()); // Essential to read the incoming JSON body!
 
-// Base check-in route to verify the server is up
-app.get('/health', (req, res) => {
-  res.json({ status: 'active', message: 'Investment Agent backend is running.' });
+// =========================================================================
+// 1. START PIPELINE: Runs the gathering and debates, then pauses
+// =========================================================================
+app.post('/api/research/start', async (req, res) => {
+  const { company, threadId } = req.body;
+
+  if (!company || !threadId) {
+    return res.status(400).json({ error: "Missing required 'company' or 'threadId' fields." });
+  }
+
+  console.log(`\n[API: Start] Initiating persistent thread [${threadId}] for ${company}...`);
+
+  try {
+    // We pass a configuration object containing the threadId to track this session
+    const config = { configurable: { thread_id: threadId } };
+    
+    // Kick off the graph. It will execute nodes sequentially until it hits the "judge" interruption
+    const stream = await researchGraph.stream({ companyName: company }, config);
+    
+    let latestState = {};
+    for await (const chunk of stream) {
+      // The stream yields updates per node. We merge them into a state tracker object
+      latestState = { ...latestState, ...chunk };
+    }
+
+    // Grab the current state data explicitly from the graph's checkpointer memory
+    const graphState = await researchGraph.getState(config);
+
+    res.json({
+      status: "paused",
+      message: "Research and debate completed. Graph is currently frozen awaiting human input.",
+      threadId: threadId,
+      collectedData: graphState.values
+    });
+
+  } catch (error) {
+    console.error("Graph Initialization Error:", error);
+    res.status(500).json({ error: "Failed to initialize the multi-agent execution pipeline." });
+  }
 });
 
-// The Server-Sent Events (SSE) Stream Route
-app.get('/api/research/:company', (req, res) => {
-  const { company } = req.params;
+// =========================================================================
+// 2. RESUME PIPELINE: Updates state with human choices, then runs the Judge
+// =========================================================================
+app.post('/api/research/resume', async (req, res) => {
+  const { threadId, humanOverride } = req.body;
 
-  // 1. Establish the SSE Connection Protocol by setting specific HTTP Headers
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
+  if (!threadId) {
+    return res.status(400).json({ error: "Missing required 'threadId'." });
+  }
 
-  // 2. Send an initial message to the client acknowledging the connection
-  res.write(`data: ${JSON.stringify({ status: 'connected', message: `Initiating research for ${company}` })}\n\n`);
+  console.log(`\n[API: Resume] Resuming thread [${threadId}] with human input...`);
 
-  // Simulate a background agent workflow step for testing purposes
-  let step = 0;
-  const interval = setInterval(() => {
-    step++;
-    if (step === 1) {
-      res.write(`data: ${JSON.stringify({ node: 'fundamentals', status: 'processing', message: 'Analyzing balance sheet and P/E ratios...' })}\n\n`);
-    } else if (step === 2) {
-      res.write(`data: ${JSON.stringify({ node: 'news', status: 'processing', message: 'Scouting recent news channels and product sentiment...' })}\n\n`);
-    } else {
-      // Wrap up the stream mock
-      res.write(`data: ${JSON.stringify({ node: 'judge', status: 'complete', verdict: 'INVEST', confidence: 85 })}\n\n`);
-      clearInterval(interval);
-      res.end(); // Closes the continuous connection cleanly
+  try {
+    const config = { configurable: { thread_id: threadId } };
+
+    // 1. Manually update the persistent state container with the human override string
+    await researchGraph.updateState(config, { humanOverride: humanOverride || "None" });
+
+    // 2. Resume execution by running the stream with a 'null' input value.
+    // LangGraph interprets 'null' as an instruction to proceed from the exact checkpoint it paused at.
+    const stream = await researchGraph.stream(null, config);
+
+    for await (const chunk of stream) {
+      // Let it finish processing the remaining node(s)
+      console.log("[Node Stream Churning]:", Object.keys(chunk));
     }
-  }, 2000);
 
-  // 3. Clean up memory if the user closes their browser window early
-  req.on('close', () => {
-    clearInterval(interval);
-    res.end();
-  });
+    // 3. Retrieve the fully completed state showing the final verdict object
+    const updatedGraphState = await researchGraph.getState(config);
+
+    res.json({
+      status: "complete",
+      message: "Final judgment has been securely validated and processed.",
+      result: updatedGraphState.values.finalVerdict
+    });
+
+  } catch (error) {
+    console.error("Graph Resumption Error:", error);
+    res.status(500).json({ error: "Failed to resume graph execution framework." });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Investment Agent Backend listening securely on port ${PORT}`);
+  console.log(`Investment Agent Backend listening securely on port ${PORT}`);
 });

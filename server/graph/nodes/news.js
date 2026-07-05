@@ -1,12 +1,14 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { webSearchTool } from "../../tools/tavily.js";
 
 export async function newsNode(state) {
   const { companyName } = state;
   console.log(`[Node: Sentiment Analyst] Scouting current market events for ${companyName}...`);
 
-  const model = new ChatOpenAI({
-    modelName: "gpt-4o-mini",
+  // CHANGED: Initialize the Gemini model with your API key
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-2.5-flash",
+    apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.2, // Slightly higher than 0 to allow the AI to read emotional market tones
   });
 
