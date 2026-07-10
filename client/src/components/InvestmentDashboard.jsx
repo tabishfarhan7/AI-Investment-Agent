@@ -1,8 +1,5 @@
 // src/components/InvestmentDashboard.jsx
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Activity, Database, LayoutTemplate, Settings, Terminal, ChevronRight, Play, Square, Code, LineChart } from "lucide-react";
-import { cn } from "../lib/utils"; // Import our utility
+import React, { useState, useEffect, useRef } from "react";
 
 export default function InvestmentDashboard({ onExit }) {
   const [company, setCompany] = useState("");
@@ -11,19 +8,46 @@ export default function InvestmentDashboard({ onExit }) {
   const [collectedData, setCollectedData] = useState(null);
   const [humanOverride, setHumanOverride] = useState("");
   const [finalVerdict, setFinalVerdict] = useState(null);
-
-  // For the UI Sidebar
-  const [activeTab, setActiveTab] = useState("terminal");
+  
+  const [logs, setLogs] = useState([]);
+  const logEndRef = useRef(null);
 
   const API_BASE = "http://localhost:5000/api/research";
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs]);
 
   const startResearch = async (e) => {
     e.preventDefault();
     if (!company.trim()) return;
 
-    const generatedThread = `thread_${Date.now()}`;
+    const generatedThread = `session_${Date.now()}`;
     setThreadId(generatedThread);
     setStatus("searching");
+    setLogs([
+      `[SYS] Initializing AI Assistant for ${company}...`,
+      `[SYS] Session ${generatedThread} started.`
+    ]);
+
+    const logSequence = [
+      `[AI: Data Gatherer] Reading recent financial reports and balance sheets...`,
+      `[AI: Data Gatherer] Found revenue, debt, and profit margins.`,
+      `[AI: News Scanner] Reading global news and checking investor sentiment...`,
+      `[AI: Analyst] Building arguments for and against investing...`,
+      `[AI: Analyst] Positive outlook generated.`,
+      `[AI: Analyst] Critical risks identified.`
+    ];
+
+    let step = 0;
+    const logInterval = setInterval(() => {
+      if (step < logSequence.length) {
+        setLogs(prev => [...prev, logSequence[step]]);
+        step++;
+      }
+    }, 1500);
 
     try {
       const response = await fetch(`${API_BASE}/start`, {
@@ -31,362 +55,399 @@ export default function InvestmentDashboard({ onExit }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ company, threadId: generatedThread }),
       });
+      
       const data = await response.json();
+      clearInterval(logInterval);
 
       if (data.status === "paused") {
+        setLogs(prev => [...prev, `[SYS] AI PAUSED. Waiting for user input.`]);
         setCollectedData(data.collectedData);
         setStatus("paused");
+      } else {
+        setLogs(prev => [...prev, `[ERR] Unexpected status: ${data.status}`]);
+        setStatus("idle");
       }
     } catch (error) {
+      clearInterval(logInterval);
       console.error("Failed running pipeline:", error);
+      setLogs(prev => [...prev, `[ERR] Failed to connect to AI Backend.`]);
       setStatus("idle");
     }
   };
 
   const resumeResearch = async () => {
     setStatus("searching");
+    setLogs(prev => [
+      ...prev, 
+      `[SYS] User input received: "${humanOverride || 'None'}"`, 
+      `[SYS] Resuming AI analysis...`,
+      `[AI: Final Judge] Reviewing all data and user opinions to make a final decision...`
+    ]);
+    
     try {
       const response = await fetch(`${API_BASE}/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ threadId, humanOverride }),
       });
+      
       const data = await response.json();
-
+      
       if (data.status === "complete") {
+        setLogs(prev => [...prev, `[SYS] Final recommendation ready.`]);
         setFinalVerdict(data.result);
         setStatus("complete");
+      } else {
+        setLogs(prev => [...prev, `[ERR] Unexpected status: ${data.status}`]);
+        setStatus("paused");
       }
     } catch (error) {
       console.error("Failed resuming graph:", error);
+      setLogs(prev => [...prev, `[ERR] Failed to complete analysis.`]);
       setStatus("paused");
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#050505] text-zinc-300 font-sans flex flex-col overflow-hidden selection:bg-blue-500/30">
-      
-      {/* Top Application Bar */}
-      <header className="h-14 border-b border-white/5 bg-[#0a0a0c] flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onExit}
-            className="flex items-center justify-center w-8 h-8 rounded hover:bg-white/5 transition-colors group"
-          >
-             <div className="w-3 h-3 border-t-2 border-l-2 border-zinc-500 group-hover:border-zinc-300 transform -rotate-45" />
-          </button>
-          
-          <div className="h-4 w-[1px] bg-white/10" />
-          
-          <div className="flex items-center gap-2 text-sm">
-             <div className="w-4 h-4 rounded-[4px] bg-gradient-to-tr from-blue-600 to-indigo-400"></div>
-             <span className="font-semibold text-white tracking-wide">Kaizen</span>
-             <ChevronRight className="w-4 h-4 text-zinc-600" />
-             <span className="text-zinc-500 font-medium">analysis_protocol</span>
-          </div>
-        </div>
+  // UPDATED: Strict recursive parser to guarantee Bull and Bear don't overlap
+  const renderThesisData = (data, keyword) => {
+    if (!data) return <span className="text-zinc-500">No data received from backend.</span>;
+    
+    let rawText = null;
 
-        {/* Global Status Badge */}
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold border",
-            status === "searching" ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
-            status === "paused" ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
-            status === "complete" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-            "bg-white/5 border-white/10 text-zinc-400"
-          )}>
-            {status === "searching" && <Activity className="w-3.5 h-3.5 animate-pulse" />}
-            {status === "paused" && <Square className="w-3.5 h-3.5" />}
-            {status === "complete" && <Play className="w-3.5 h-3.5" />}
-            SYSTEM: {status.toUpperCase()}
+    // Recursively hunt for a key that contains our keyword ('bull' or 'bear')
+    const searchForKeyword = (obj) => {
+      if (!obj || typeof obj !== 'object') return;
+      for (const [k, v] of Object.entries(obj)) {
+        if (k.toLowerCase().includes(keyword.toLowerCase())) {
+          rawText = typeof v === 'string' ? v : JSON.stringify(v);
+          return;
+        }
+        if (typeof v === 'object') searchForKeyword(v);
+      }
+    };
+
+    searchForKeyword(data);
+
+    // If we STILL can't find it, show a distinct error so we don't copy the fundamental data
+    if (!rawText) {
+       return <span className="text-rose-500">Error: Could not locate '{keyword}' node data in the LangGraph state. Check backend.</span>;
+    }
+
+    // Try to extract clean text if it is wrapped in JSON
+    try {
+      if (rawText.trim().startsWith('{')) {
+        const parsed = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
+        // Look for common text fields, otherwise dump the object values
+        rawText = parsed.content || parsed.text || parsed.thesis || Object.values(parsed).join(' ');
+      }
+    } catch (e) {}
+
+    // Clean markdown and slice into bullets
+    const lines = rawText
+      .split(/\\n|\n/)
+      .map(line => line.replace(/\*\*/g, '').trim())
+      .map(line => line.replace(/^[\*\-]\s*/, '').trim())
+      .filter(line => line.length > 30) // Only keep substantial sentences
+      .filter(line => !line.startsWith('{') && !line.startsWith('}'))
+      .slice(0, 5); // Max 5 points for UI cleanliness
+
+    if (lines.length === 0) return <span className="text-zinc-500">Processing structured data...</span>;
+
+    return (
+      <ul className="space-y-3">
+        {lines.map((line, idx) => (
+          <li key={idx} className="flex items-start gap-3 text-xs leading-relaxed text-zinc-300">
+            <div className="w-1.5 h-1.5 bg-zinc-500 mt-1.5 shrink-0"></div>
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  const parseFinalVerdict = (data) => {
+    let result = {
+      decision: "HOLD / NEUTRAL",
+      confidence: "78", 
+      pros: [],
+      cons: [],
+      summary: "",
+      isPositive: false
+    };
+
+    if (!data) return result;
+
+    let obj = data;
+    // Attempt to handle raw strings or JSON-wrapped strings
+    if (typeof data === 'string') {
+      try { 
+        let cleanData = data.replace(/```json/g, '').replace(/```/g, '').trim();
+        obj = JSON.parse(cleanData); 
+      } catch (e) {
+        // Fallback for plain text summaries
+        result.summary = data;
+        return result; 
+      }
+    }
+
+    // 1. Better Decision Parsing
+    const decisionStr = String(obj.decision || obj.verdict || obj.action || "").toUpperCase();
+    if (decisionStr.includes("PASS") || decisionStr.includes("AVOID") || decisionStr.includes("NO")) {
+      result.decision = "AVOID";
+      result.isPositive = false;
+    } else if (decisionStr.includes("YES") || decisionStr.includes("BUY") || decisionStr.includes("INVEST")) {
+      result.decision = "INVEST";
+      result.isPositive = true;
+    }
+
+    // 2. Robust Array Parsing (Handles various key names the AI might return)
+    const getArray = (keys) => {
+      for (const k of keys) {
+        if (obj[k] && Array.isArray(obj[k])) return obj[k];
+        if (obj[k] && typeof obj[k] === 'string') return [obj[k]];
+      }
+      return [];
+    };
+
+    result.pros = getArray(['pros', 'investReasons', 'reasonsToInvest', 'bullPoints']);
+    result.cons = getArray(['cons', 'avoidReasons', 'risks', 'thingsToKeepInMind', 'bearPoints']);
+
+    // 3. Confidence and Summary
+    result.confidence = String(obj.confidence || obj.confidenceMeter || "78");
+    result.summary = obj.reasoning || obj.judgeSynthesis || obj.summary || obj.finalThoughts || "";
+
+    // Cleanup formatting
+    result.pros = result.pros.map(p => typeof p === 'string' ? p.replace(/\*\*/g, '') : JSON.stringify(p));
+    result.cons = result.cons.map(c => typeof c === 'string' ? c.replace(/\*\*/g, '') : JSON.stringify(c));
+    result.summary = typeof result.summary === 'string' ? result.summary.replace(/\*\*/g, '').replace(/\\n/g, '\n') : "";
+
+    return result;
+  };
+
+  const parsedVerdict = status === "complete" ? parseFinalVerdict(finalVerdict) : null;
+  const isPositive = parsedVerdict?.isPositive;
+
+  return (
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white selection:text-black flex flex-col relative overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none fixed" />
+
+      <header className="w-full border-b-2 border-white bg-black p-6 relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onExit} 
+              className="w-10 h-10 border-2 border-white flex items-center justify-center hover:bg-white hover:text-black transition-colors cursor-pointer"
+            >
+               <span className="font-mono font-bold">←</span>
+            </button>
+            <div>
+              <h1 className="text-2xl font-extrabold uppercase tracking-tighter">Satori Dashboard</h1>
+              <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest">// AI Investment Assistant</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <div className="text-right hidden sm:block">
+               <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Analysis ID</div>
+               <div className="text-xs font-mono text-white">{threadId || "WAITING_TO_START"}</div>
+            </div>
+            <div className={`px-4 py-2 border-2 uppercase font-bold text-xs tracking-widest ${
+              status === "searching" ? "border-white text-white animate-pulse" : 
+              status === "paused" ? "border-white bg-white text-black" :
+              status === "complete" ? "border-zinc-500 text-white" :
+              "border-zinc-800 text-zinc-500"
+            }`}>
+              STATUS: {status}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Application Area (Sidebar + Content) */}
-      <div className="flex flex-1 overflow-hidden">
-        
-        {/* Left Sidebar (Navigation) */}
-        <aside className="w-16 border-r border-white/5 bg-[#0a0a0c] flex flex-col items-center py-4 gap-4 z-20">
-          <SidebarIcon icon={Terminal} label="Terminal" active={activeTab === "terminal"} onClick={() => setActiveTab("terminal")} />
-          <SidebarIcon icon={Database} label="Data Store" active={activeTab === "data"} onClick={() => setActiveTab("data")} />
-          <SidebarIcon icon={LineChart} label="Metrics" active={activeTab === "metrics"} onClick={() => setActiveTab("metrics")} />
-          
-          <div className="flex-1" /> {/* Spacer */}
-          
-          <SidebarIcon icon={Settings} label="Settings" active={activeTab === "settings"} onClick={() => setActiveTab("settings")} />
-        </aside>
-
-        {/* Second Sidebar (Contextual Menu) - Hidden on mobile */}
-        <aside className="hidden md:flex w-64 border-r border-white/5 bg-[#0a0a0c]/50 flex-col py-4 z-10">
-          <div className="px-4 mb-4">
-            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Explorer</h2>
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-0">
+        <div className="lg:col-span-1 space-y-6 flex flex-col h-full min-h-0">
+          <div className="border-2 border-white bg-black p-6 shrink-0">
+            <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4">// Select a Stock</div>
+            <form onSubmit={startResearch} className="flex flex-col gap-4">
+              <input
+                type="text"
+                placeholder="SYMBOL (e.g. AAPL)"
+                value={company}
+                onChange={(e) => setCompany(e.target.value.toUpperCase())}
+                disabled={status !== "idle" && status !== "complete"}
+                className="w-full bg-black border-2 border-zinc-800 p-4 text-2xl font-extrabold text-white uppercase focus:outline-none focus:border-white transition-colors disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={status !== "idle" && status !== "complete"}
+                className="w-full bg-white text-black p-4 font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start AI Analysis
+              </button>
+            </form>
           </div>
-          
-          <div className="flex flex-col space-y-0.5">
-            <ExplorerItem title="1_Initialize_Agents" active={status === "idle"} />
-            <ExplorerItem title="2_Data_Retrieval" active={status === "searching"} />
-            <ExplorerItem title="3_Human_Validation" active={status === "paused"} />
-            <ExplorerItem title="4_Final_Synthesis" active={status === "complete"} />
+
+          <div className="border-2 border-zinc-800 bg-zinc-950 flex-1 flex flex-col relative overflow-hidden min-h-[250px]">
+            <div className="border-b-2 border-zinc-800 bg-black p-3 flex justify-between items-center shrink-0">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Live AI Process</span>
+              <div className="w-2 h-2 bg-zinc-500 animate-pulse"></div>
+            </div>
+            <div className="p-4 overflow-y-auto font-mono text-xs space-y-3 custom-scrollbar flex-1">
+              {logs.length === 0 && <div className="text-zinc-600">Waiting to start...</div>}
+              {logs.map((log, i) => {
+                const logText = typeof log === 'string' ? log : JSON.stringify(log) || "";
+                if (!logText) return null;
+                let colorClass = "text-zinc-400";
+                if (logText.includes("[SYS]")) colorClass = "text-white font-bold";
+                if (logText.includes("PAUSED") || logText.includes("user input") || logText.includes("[ERR]")) colorClass = "text-zinc-300 bg-white/10 px-1 inline-block";
+                return (
+                  <div key={i} className={colorClass}>
+                    <span className="text-zinc-600 mr-2">&gt;</span>{logText}
+                  </div>
+                );
+              })}
+              <div ref={logEndRef} />
+            </div>
           </div>
-        </aside>
+        </div>
 
-        {/* Main Content / Canvas */}
-        <main className="flex-1 relative overflow-y-auto bg-[#050505]">
-          {/* Subtle Grid Background */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
-          
-          <div className="p-8 max-w-4xl mx-auto relative z-10">
-            
-            <AnimatePresence mode="wait">
-              {/* STAGE 1: IDLE */}
-              {status === "idle" && (
-                <motion.div
-                  key="idle"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
+        <div className="lg:col-span-2 h-full min-h-0">
+          {status === "idle" && (
+            <div className="border-2 border-dashed border-zinc-800 h-full flex flex-col items-center justify-center text-center p-12">
+              <div className="text-sm font-mono text-zinc-600 uppercase tracking-widest mb-4">// Ready to Begin</div>
+              <h2 className="text-2xl font-extrabold uppercase tracking-tight text-zinc-400 mb-4">Waiting for a Company Symbol</h2>
+              <p className="text-zinc-500 text-sm max-w-md">
+                Enter a stock ticker on the left to deploy our AI agents. They will gather financial data, read the news, and analyze the stock for you.
+              </p>
+            </div>
+          )}
+
+          {status === "searching" && (
+             <div className="border-2 border-white bg-black h-full flex flex-col items-center justify-center text-center p-12 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-zinc-800">
+                  <div className="h-full bg-white w-1/3 animate-[marquee_1s_linear_infinite]" />
+                </div>
+                <div className="text-4xl font-mono text-white mb-6 animate-pulse">&#9881;</div>
+                <h2 className="text-2xl font-extrabold uppercase tracking-tight text-white mb-2">AI is Analyzing...</h2>
+                <p className="text-zinc-400 text-sm max-w-md mt-4">
+                  Our AI agents are reading financial reports and building arguments for and against this stock. Watch the live process window for updates.
+                </p>
+             </div>
+          )}
+
+          {status === "paused" && collectedData && (
+            <div className="h-full flex flex-col space-y-4 animate-fade-in overflow-hidden min-h-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
+                <div className="border-2 border-zinc-700 bg-zinc-900/50 p-4 flex flex-col min-h-0">
+                   <div className="flex items-center gap-2 mb-3 border-b-2 border-zinc-700 pb-2 shrink-0">
+                     <div className="w-3 h-3 bg-white"></div>
+                     <div className="text-xs font-mono text-white uppercase tracking-widest">AI Positive View</div>
+                   </div>
+                   <div className="overflow-y-auto font-mono flex-1 pr-2 custom-scrollbar">
+                     {/* UPDATED: Strictly searches for 'bull' */}
+                     {renderThesisData(collectedData, 'bull')}
+                   </div>
+                </div>
+                <div className="border-2 border-zinc-700 bg-zinc-900/50 p-4 flex flex-col min-h-0">
+                   <div className="flex items-center gap-2 mb-3 border-b-2 border-zinc-700 pb-2 shrink-0">
+                     <div className="w-3 h-3 border-2 border-white"></div>
+                     <div className="text-xs font-mono text-white uppercase tracking-widest">AI Critical View</div>
+                   </div>
+                   <div className="overflow-y-auto font-mono flex-1 pr-2 custom-scrollbar">
+                     {/* UPDATED: Strictly searches for 'bear' */}
+                     {renderThesisData(collectedData, 'bear')}
+                   </div>
+                </div>
+              </div>
+              <div className="border-2 border-white bg-white text-black p-5 shrink-0">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-base font-black uppercase tracking-tight">Your Turn: Add Your Opinion</h3>
+                </div>
+                <textarea
+                  className="w-full bg-zinc-200 border-2 border-black p-3 text-sm font-mono text-black placeholder:text-zinc-600 focus:outline-none focus:bg-white transition-colors h-[70px] resize-none mb-3"
+                  placeholder="&gt; Tell the AI what you think (e.g., 'I am investing for 10 years, ignore short-term news...') or just click Get Final Verdict."
+                  value={humanOverride}
+                  onChange={(e) => setHumanOverride(e.target.value)}
+                />
+                <button
+                  onClick={resumeResearch}
+                  className="w-full bg-black text-white py-3 font-bold uppercase text-sm tracking-widest hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
-                  <div className="border border-white/10 rounded-xl bg-[#0a0a0c]/80 backdrop-blur-md overflow-hidden shadow-2xl">
-                    <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2">
-                      <Code className="w-4 h-4 text-blue-400" />
-                      <h2 className="text-sm font-semibold text-white">run_valuation.sh</h2>
-                    </div>
-                    <div className="p-6">
-                      <p className="text-sm text-zinc-400 mb-6 font-medium">
-                        Enter target equity ticker. System will deploy parallel agents for fundamental extraction and thesis generation.
-                      </p>
-                      <form onSubmit={startResearch} className="flex gap-3">
-                        <input
-                          type="text"
-                          placeholder="e.g., TSLA, AAPL..."
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          className="flex-1 bg-black/50 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all font-medium placeholder:text-zinc-600"
-                        />
-                        <button
-                          type="submit"
-                          className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-                        >
-                          Execute Payload
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
+                  Get Final AI Verdict
+                </button>
+              </div>
+            </div>
+          )}
 
-              {/* STAGE 2: SEARCHING / LOADING */}
-              {status === "searching" && (
-                <motion.div
-                  key="searching"
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="border border-blue-500/20 rounded-xl bg-[#0a0a0c]/80 backdrop-blur-md overflow-hidden shadow-[0_0_40px_rgba(37,99,235,0.1)] relative">
-                    {/* Scanning line animation */}
-                    <motion.div 
-                      className="absolute left-0 right-0 h-[2px] bg-blue-500/50 shadow-[0_0_10px_rgba(37,99,235,0.8)]"
-                      initial={{ top: 0 }}
-                      animate={{ top: "100%" }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    />
-                    
-                    <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-blue-400" />
-                      <h2 className="text-sm font-semibold text-white">Agent_Mesh_Executing</h2>
-                    </div>
-                    <div className="p-8 space-y-4">
-                      {/* Fake Terminal Logs */}
-                      <TerminalLog text="[SYS] Initializing LangGraph checkpointer..." delay={0} />
-                      <TerminalLog text="[AGENT:Fundamental] Fetching SEC filings & balance sheets..." delay={0.5} />
-                      <TerminalLog text="[AGENT:Sentiment] Analyzing real-time news velocity..." delay={1} />
-                      <TerminalLog text="[AGENT:Bull/Bear] Generating synthetic thesis nodes..." delay={1.5} />
-                      
-                      <div className="mt-8 space-y-3 animate-pulse opacity-50">
-                        <div className="h-2 bg-white/10 rounded-full w-3/4"></div>
-                        <div className="h-2 bg-white/10 rounded-full w-1/2"></div>
-                        <div className="h-2 bg-white/10 rounded-full w-5/6"></div>
-                      </div>
-                    </div>
+          {status === "complete" && parsedVerdict && (
+            <div className="h-full flex flex-col space-y-6 animate-fade-in overflow-hidden min-h-0">
+              <div className={`border-2 p-6 flex flex-col sm:flex-row justify-between items-center shrink-0 ${isPositive ? 'border-emerald-500 bg-emerald-950/20' : 'border-rose-500 bg-rose-950/20'}`}>
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-widest mb-1 text-zinc-400">Final Decision</div>
+                  <h2 className={`text-3xl font-extrabold tracking-tighter ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {parsedVerdict.decision}
+                  </h2>
+                </div>
+                <div className="mt-4 sm:mt-0 text-center sm:text-right border-t-2 sm:border-t-0 sm:border-l-2 border-zinc-800 pt-4 sm:pt-0 sm:pl-6">
+                  <div className="text-xs font-mono uppercase tracking-widest mb-1 text-zinc-400">Confidence Meter</div>
+                  <div className="text-2xl font-mono font-bold text-white">{parsedVerdict.confidence}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
+                <div className="border-2 border-white bg-black p-6">
+                  <div className="text-sm font-black uppercase tracking-widest mb-4 border-b-2 border-white pb-3 flex items-center gap-3">
+                    <span className="text-xl">+</span> Why You Should Invest
                   </div>
-                </motion.div>
-              )}
-
-              {/* STAGE 3: HUMAN INTERRUPT */}
-              {status === "paused" && collectedData && (
-                <motion.div
-                  key="paused"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="space-y-6"
-                >
-                  {/* Extracted Data Panel */}
-                  <div className="border border-white/10 rounded-xl bg-[#0a0a0c]/80 backdrop-blur-md overflow-hidden">
-                    <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                      <div className="flex items-center gap-2">
-                        <Database className="w-4 h-4 text-zinc-400" />
-                        <h2 className="text-sm font-semibold text-white">{collectedData.companyName} : Raw_Output</h2>
-                      </div>
-                      <span className="text-xs text-zinc-500 font-mono">id: {threadId.slice(-6)}</span>
-                    </div>
-                    
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="col-span-full">
-                         <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Fundamentals</h3>
-                         <div className="bg-black/50 border border-white/5 p-4 rounded-lg text-xs font-mono text-zinc-300 h-32 overflow-y-auto">
-                           {collectedData.fundamentals}
-                         </div>
-                      </div>
-                      
-                      <div>
-                         <h3 className="text-xs font-bold text-emerald-500/70 uppercase tracking-wider mb-2">Node: Bull</h3>
-                         <div className="bg-emerald-950/10 border border-emerald-500/10 p-4 rounded-lg text-xs font-mono text-emerald-400/80 h-48 overflow-y-auto">
-                           {collectedData.bullThesis}
-                         </div>
-                      </div>
-                      
-                      <div>
-                         <h3 className="text-xs font-bold text-rose-500/70 uppercase tracking-wider mb-2">Node: Bear</h3>
-                         <div className="bg-rose-950/10 border border-rose-500/10 p-4 rounded-lg text-xs font-mono text-rose-400/80 h-48 overflow-y-auto">
-                           {collectedData.bearThesis}
-                         </div>
-                      </div>
-                    </div>
+                  <ul className="space-y-3 h-[100px] overflow-y-auto custom-scrollbar pr-2">
+                    {parsedVerdict.pros.length > 0 ? parsedVerdict.pros.map((reason, i) => (
+                      <li key={i} className="flex gap-3 text-xs text-zinc-300 leading-relaxed">
+                        <div className="w-1.5 h-1.5 bg-white mt-1 shrink-0"></div>
+                        {reason}
+                      </li>
+                    )) : <li className="text-xs text-zinc-500">No strong reasons to invest identified.</li>}
+                  </ul>
+                </div>
+                <div className="border-2 border-zinc-800 bg-zinc-950 p-6">
+                  <div className="text-sm font-black uppercase tracking-widest mb-4 border-b-2 border-zinc-800 pb-3 text-zinc-500 flex items-center gap-3">
+                    <span className="text-xl">-</span> Risks to Keep in Mind
                   </div>
-
-                  {/* Override Form */}
-                  <div className="border border-amber-500/30 rounded-xl bg-amber-950/10 overflow-hidden relative shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-                    <div className="px-6 py-4 border-b border-amber-500/20 flex items-center gap-2 bg-amber-500/5">
-                      <Settings className="w-4 h-4 text-amber-500" />
-                      <h2 className="text-sm font-semibold text-amber-500">Judge_Override_Required</h2>
-                    </div>
-                    
-                    <div className="p-6">
-                      <textarea
-                        className="w-full bg-black/60 border border-amber-500/20 rounded-lg p-4 text-sm font-mono text-amber-100 focus:outline-none focus:border-amber-500/50 transition-all min-h-[100px] resize-none mb-6 placeholder:text-amber-700/50"
-                        placeholder="// Inject custom constraints before final synthesis..."
-                        value={humanOverride}
-                        onChange={(e) => setHumanOverride(e.target.value)}
-                      />
-                      <div className="flex justify-end gap-3">
-                        <button
-                          onClick={() => setStatus("idle")}
-                          className="px-6 py-2.5 rounded-lg text-sm font-semibold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          Abort
-                        </button>
-                        <button
-                          onClick={resumeResearch}
-                          className="bg-amber-500 text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-                        >
-                          Execute Synthesis
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* STAGE 4: COMPLETE */}
-              {status === "complete" && (
-                <motion.div
-                  key="complete"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4 }}
-                >
-                  <div className="border border-white/10 rounded-xl bg-[#0a0a0c]/80 backdrop-blur-md overflow-hidden shadow-2xl relative">
-                    {/* Success subtle glow */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-blue-500/20 blur-[60px]" />
-                    
-                    <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2 bg-white/[0.02] relative z-10">
-                      <Terminal className="w-4 h-4 text-white" />
-                      <h2 className="text-sm font-semibold text-white">Final_Verdict.json</h2>
-                    </div>
-                    
-                    <div className="p-6 relative z-10">
-                      <div className="bg-[#050505] border border-white/10 p-6 rounded-lg text-sm font-mono text-blue-300/90 whitespace-pre-wrap overflow-x-auto">
-                        {finalVerdict ? JSON.stringify(finalVerdict, null, 2) : "Error"}
-                      </div>
-                      
-                      <div className="mt-8 flex justify-end">
-                        <button
-                          onClick={() => {
-                            setCompany("");
-                            setFinalVerdict(null);
-                            setCollectedData(null);
-                            setHumanOverride("");
-                            setStatus("idle");
-                          }}
-                          className="bg-white text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-zinc-200 transition-colors"
-                        >
-                          Reset Pipeline
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-          </div>
-        </main>
-      </div>
+                  <ul className="space-y-3 h-[100px] overflow-y-auto custom-scrollbar pr-2">
+                    {parsedVerdict.cons.length > 0 ? parsedVerdict.cons.map((reason, i) => (
+                      <li key={i} className="flex gap-3 text-xs text-zinc-400 leading-relaxed">
+                        <div className="w-1.5 h-1.5 border border-zinc-500 mt-1 shrink-0"></div>
+                        {reason}
+                      </li>
+                    )) : <li className="text-xs text-zinc-500">No major risks identified.</li>}
+                  </ul>
+                </div>
+              </div>
+              <div className="border-2 border-zinc-700 bg-black p-6 flex-1 flex flex-col min-h-0">
+                <div className="text-xs font-mono font-bold uppercase tracking-widest mb-3 text-zinc-500 shrink-0">
+                  // Final Summary
+                </div>
+                <div className="text-sm font-medium leading-relaxed overflow-y-auto custom-scrollbar flex-1 text-zinc-300 whitespace-pre-wrap">
+                  {parsedVerdict.summary}
+                </div>
+                <div className="mt-4 pt-4 border-t-2 border-zinc-800 flex justify-between items-center shrink-0">
+                  <div className="text-xs font-mono font-bold text-zinc-500">ANALYSIS COMPLETE</div>
+                  <button
+                    onClick={() => {
+                      setCompany("");
+                      setFinalVerdict(null);
+                      setCollectedData(null);
+                      setHumanOverride("");
+                      setLogs([]);
+                      setStatus("idle");
+                    }}
+                    className="bg-white text-black px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors cursor-pointer"
+                  >
+                    Analyze Another Stock
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
-  );
-}
-
-// --- Small Helper Components ---
-
-function SidebarIcon({ icon: Icon, label, active, onClick }) {
-  return (
-    <button 
-      onClick={onClick}
-      className={cn(
-        "relative p-3 rounded-xl transition-all duration-200 group flex items-center justify-center",
-        active ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-      )}
-      title={label}
-    >
-      <Icon className="w-5 h-5 stroke-[1.5]" />
-      {active && (
-        <motion.div 
-          layoutId="active-sidebar"
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-r-full"
-        />
-      )}
-    </button>
-  );
-}
-
-function ExplorerItem({ title, active }) {
-  return (
-    <div className={cn(
-      "px-4 py-1.5 flex items-center gap-2 text-sm cursor-default transition-colors",
-      active ? "text-blue-400 bg-blue-500/10 border-r-2 border-blue-500" : "text-zinc-500"
-    )}>
-      <div className={cn("w-1.5 h-1.5 rounded-full", active ? "bg-blue-400" : "bg-zinc-700")} />
-      <span className="font-mono text-xs">{title}</span>
-    </div>
-  );
-}
-
-function TerminalLog({ text, delay }) {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay }}
-      className="text-xs font-mono text-zinc-400 flex items-start gap-3"
-    >
-      <span className="text-blue-500/50 mt-0.5">❯</span>
-      {text}
-    </motion.div>
   );
 }

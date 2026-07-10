@@ -1,3 +1,4 @@
+import "../config/env.js";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { InvestmentState } from "./state.js";
 import pg from "pg"; 
@@ -27,7 +28,7 @@ workflow.addEdge("judge", END);
 
 // 1. Initialize the PostgreSQL Connection Pool
 const pool = new pg.Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
 });
 
 // 2. Create the PostgreSQL persistent checkpointer

@@ -1,20 +1,41 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-// CHANGED: We now import 'memory' alongside 'researchGraph' so we can initialize the Postgres tables
+import './config/env.js';
+import pkg from 'pg';
 import { researchGraph, memory } from './graph/workflow.js'; 
 
-dotenv.config();
-
+const { Pool } = pkg;
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json()); // Essential to read the incoming JSON body!
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
+});
 
-// =========================================================================
-// 1. START PIPELINE: Runs the gathering and debates, then pauses
-// =========================================================================
+app.use(cors());
+app.use(express.json());
+
+// Create the table automatically if it doesn't exist
+const initializeDB = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ai_sessions (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(255) UNIQUE NOT NULL,
+        company VARCHAR(255) NOT NULL,
+        verdict VARCHAR(255),
+        confidence VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'PENDING',
+        is_positive BOOLEAN,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("🗄️ Custom ai_sessions table verified.");
+  } catch (err) {
+    console.error("Failed to verify ai_sessions table:", err);
+  }
+};
+
 app.post('/api/research/start', async (req, res) => {
   const { company, threadId } = req.body;
 
@@ -25,19 +46,20 @@ app.post('/api/research/start', async (req, res) => {
   console.log(`\n[API: Start] Initiating persistent thread [${threadId}] for ${company}...`);
 
   try {
-    // We pass a configuration object containing the threadId to track this session
+    // 1. Save initial pending state to our custom table
+    await pool.query(
+      `INSERT INTO ai_sessions (session_id, company, status) VALUES ($1, $2, $3) ON CONFLICT (session_id) DO NOTHING`,
+      [threadId, company, 'PAUSED']
+    );
+
     const config = { configurable: { thread_id: threadId } };
-    
-    // Kick off the graph. It will execute nodes sequentially until it hits the "judge" interruption
     const stream = await researchGraph.stream({ companyName: company }, config);
     
     let latestState = {};
     for await (const chunk of stream) {
-      // The stream yields updates per node. We merge them into a state tracker object
       latestState = { ...latestState, ...chunk };
     }
 
-    // Grab the current state data explicitly from the graph's checkpointer memory
     const graphState = await researchGraph.getState(config);
 
     res.json({
@@ -53,9 +75,6 @@ app.post('/api/research/start', async (req, res) => {
   }
 });
 
-// =========================================================================
-// 2. RESUME PIPELINE: Updates state with human choices, then runs the Judge
-// =========================================================================
 app.post('/api/research/resume', async (req, res) => {
   const { threadId, humanOverride } = req.body;
 
@@ -68,25 +87,48 @@ app.post('/api/research/resume', async (req, res) => {
   try {
     const config = { configurable: { thread_id: threadId } };
 
-    // 1. Manually update the persistent state container with the human override string
     await researchGraph.updateState(config, { humanOverride: humanOverride || "None" });
 
-    // 2. Resume execution by running the stream with a 'null' input value.
-    // LangGraph interprets 'null' as an instruction to proceed from the exact checkpoint it paused at.
     const stream = await researchGraph.stream(null, config);
 
     for await (const chunk of stream) {
-      // Let it finish processing the remaining node(s)
       console.log("[Node Stream Churning]:", Object.keys(chunk));
     }
 
-    // 3. Retrieve the fully completed state showing the final verdict object
     const updatedGraphState = await researchGraph.getState(config);
+    const finalData = updatedGraphState.values.finalVerdict;
+
+    // 2. Parse the final verdict to update our database
+    let verdictText = "UNKNOWN";
+    let isPositive = false;
+    let confidence = "--";
+
+    if (finalData) {
+       let parsed = finalData;
+       if (typeof finalData === 'string') {
+         try { parsed = JSON.parse(finalData.replace(/```json/g, '').replace(/```/g, '').trim()); } catch(e){}
+       }
+       const decisionStr = String(parsed.decision || parsed.verdict || parsed.action || "").toUpperCase();
+       if (decisionStr.includes("PASS") || decisionStr.includes("AVOID") || decisionStr.includes("NO") || decisionStr.includes("SELL")) {
+           verdictText = "AVOID";
+           isPositive = false;
+       } else if (decisionStr.includes("YES") || decisionStr.includes("BUY") || decisionStr.includes("INVEST")) {
+           verdictText = "INVEST";
+           isPositive = true;
+       }
+       confidence = parsed.confidence || parsed.confidenceMeter || "--";
+    }
+
+    // 3. Update the custom table with the final results!
+    await pool.query(
+      `UPDATE ai_sessions SET verdict = $1, confidence = $2, status = $3, is_positive = $4 WHERE session_id = $5`,
+      [verdictText, confidence, 'COMPLETE', isPositive, threadId]
+    );
 
     res.json({
       status: "complete",
       message: "Final judgment has been securely validated and processed.",
-      result: updatedGraphState.values.finalVerdict
+      result: finalData
     });
 
   } catch (error) {
@@ -95,13 +137,24 @@ app.post('/api/research/resume', async (req, res) => {
   }
 });
 
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const query = 'SELECT * FROM ai_sessions ORDER BY created_at DESC LIMIT 50';
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database query failed:", error);
+    res.status(500).json({ error: "Failed to fetch sessions from database" });
+  }
+});
+
 app.listen(PORT, async () => {
   try {
-    // Run the required setup to prepare the PostgreSQL database tables
     await memory.setup(); 
-    console.log(`🗄️ PostgreSQL Checkpointer connected and configured.`);
-    console.log(`🚀 Investment Agent Backend listening securely on port ${PORT}`);
+    await initializeDB(); 
+    console.log(` PostgreSQL Checkpointer connected and configured.`);
+    console.log(` Investment Agent Backend listening securely on port ${PORT}`);
   } catch (error) {
-    console.error("❌ Failed to initialize PostgreSQL Checkpointer:", error);
+    console.error("Failed to initialize PostgreSQL Checkpointer:", error);
   }
 });

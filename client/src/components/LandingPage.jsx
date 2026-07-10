@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
-export default function LandingPage({ onLaunch }) {
-  // 1. Initial Mock Data (Fallback so the screen is never empty)
+export default function LandingPage({ onLaunch, onOpenGraph, onOpenArchive }) {
+ 
   const [stocks, setStocks] = useState([
     { sym: "NVDA", price: "124.50", change: "+2.4%", up: true },
     { sym: "AAPL", price: "173.20", change: "-1.2%", up: false },
@@ -104,8 +104,11 @@ export default function LandingPage({ onLaunch }) {
         
         <div className="hidden md:flex gap-8 text-sm font-bold text-zinc-500 uppercase tracking-widest">
           <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
-          <a href="#" className="hover:text-white transition-colors">Agents</a>
-          <a href="#" className="hover:text-white transition-colors">Docs</a>
+          
+          <button onClick={onOpenGraph} className="hover:text-white transition-colors cursor-pointer uppercase">
+            Live Market
+          </button>
+          <button onClick={onOpenArchive} className="hover:text-white transition-colors cursor-pointer uppercase">Archive</button>
         </div>
 
         <button 
