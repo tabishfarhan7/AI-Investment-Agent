@@ -10,6 +10,7 @@ export default function LandingPage({ onLaunch, onOpenGraph, onOpenArchive }) {
     { sym: "MSFT", price: "410.00", change: "+1.1%", up: true },
     { sym: "META", price: "485.30", change: "+3.2%", up: true },
   ]);
+  const [isOpen, setIsOpen] = useState(false);
  const logos = [
   { name: "Apple", url: "/logos/apple.svg" },
   { name: "BMW", url: "/logos/bmw.svg" },
@@ -94,29 +95,55 @@ export default function LandingPage({ onLaunch, onOpenGraph, onOpenArchive }) {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] pointer-events-none" />
 
       {/* 1. NAVBAR */}
-      <nav className="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full relative z-10">
-        <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-6 h-6 bg-white flex items-center justify-center transition-transform group-hover:rotate-90">
-             <div className="w-2 h-2 bg-black"></div>
+      <nav className="max-w-7xl mx-auto w-full relative z-10 px-8 py-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3 cursor-pointer group">
+            <div className="w-6 h-6 bg-white flex items-center justify-center transition-transform group-hover:rotate-90">
+               <div className="w-2 h-2 bg-black"></div>
+            </div>
+            <span className="text-xl font-extrabold tracking-tighter uppercase">SATORI_</span>
           </div>
-          <span className="text-xl font-extrabold tracking-tighter uppercase">SATORI_</span>
-        </div>
-        
-        <div className="hidden md:flex gap-8 text-sm font-bold text-zinc-500 uppercase tracking-widest">
-          <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
           
-          <button onClick={onOpenGraph} className="hover:text-white transition-colors cursor-pointer uppercase">
-            Live Market
+          <div className="hidden md:flex gap-8 text-sm font-bold text-zinc-500 uppercase tracking-widest">
+            <a href="#architecture" className="hover:text-white transition-colors">Architecture</a>
+            
+            <button onClick={onOpenGraph} className="hover:text-white transition-colors cursor-pointer uppercase">
+              Live Market
+            </button>
+            <button onClick={onOpenArchive} className="hover:text-white transition-colors cursor-pointer uppercase">Archive</button>
+          </div>
+
+          <button 
+            onClick={onLaunch}
+            className="hidden md:block bg-white text-black px-6 py-2.5 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors cursor-pointer"
+          >
+            Initialize
           </button>
-          <button onClick={onOpenArchive} className="hover:text-white transition-colors cursor-pointer uppercase">Archive</button>
+
+          <button 
+            onClick={() => setIsOpen(!isOpen)} 
+            className="md:hidden text-white focus:outline-none"
+            aria-label="Toggle navigation menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {isOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </div>
 
-        <button 
-          onClick={onLaunch}
-          className="bg-white text-black px-6 py-2.5 rounded-none text-sm font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors cursor-pointer"
-        >
-          Initialize
-        </button>
+        <div className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-48 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
+          <div className="flex flex-col space-y-4 pb-4 text-sm font-bold text-zinc-500 uppercase tracking-widest">
+            <a href="#architecture" onClick={() => setIsOpen(false)} className="hover:text-white transition-colors">Architecture</a>
+            <button onClick={() => { setIsOpen(false); onOpenGraph(); }} className="text-left hover:text-white transition-colors cursor-pointer uppercase">
+              Live Market
+            </button>
+            <button onClick={() => { setIsOpen(false); onOpenArchive(); }} className="text-left hover:text-white transition-colors cursor-pointer uppercase">Archive</button>
+          </div>
+        </div>
       </nav>
 
       {/* 2. MAIN HERO BLOCK */}

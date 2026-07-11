@@ -209,8 +209,8 @@ export default function InvestmentDashboard({ onExit }) {
       return [];
     };
 
-    result.pros = getArray(['pros', 'investReasons', 'reasonsToInvest', 'bullPoints']);
-    result.cons = getArray(['cons', 'avoidReasons', 'risks', 'thingsToKeepInMind', 'bearPoints']);
+    result.pros = getArray(['pros', 'investReasons', 'reasonsToInvest', 'bullPoints', 'bullCase']);
+    result.cons = getArray(['cons', 'avoidReasons', 'risks', 'thingsToKeepInMind', 'bearPoints', 'bearCase']);
 
     // 3. Confidence and Summary
     result.confidence = String(obj.confidence || obj.confidenceMeter || "78");
@@ -222,6 +222,29 @@ export default function InvestmentDashboard({ onExit }) {
     result.summary = typeof result.summary === 'string' ? result.summary.replace(/\*\*/g, '').replace(/\\n/g, '\n') : "";
 
     return result;
+  };
+
+  const renderList = (data) => {
+    if (!data) return <p className="text-xs text-zinc-500">No specific points identified.</p>;
+
+    if (Array.isArray(data) && data.length > 0) {
+      return (
+        <ul className="space-y-3 h-[100px] overflow-y-auto custom-scrollbar pr-2">
+          {data.map((item, index) => (
+            <li key={index} className="flex gap-3 text-xs text-zinc-300 leading-relaxed">
+              <div className="w-1.5 h-1.5 bg-white mt-1 shrink-0"></div>
+              {typeof item === 'string' ? item : JSON.stringify(item)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (typeof data === 'string') {
+      return <p className="text-xs text-zinc-300 leading-relaxed">{data}</p>;
+    }
+
+    return <p className="text-xs text-zinc-500">No specific points identified.</p>;
   };
 
   const parsedVerdict = status === "complete" ? parseFinalVerdict(finalVerdict) : null;
@@ -322,7 +345,7 @@ export default function InvestmentDashboard({ onExit }) {
           )}
 
           {status === "searching" && (
-             <div className="border-2 border-white bg-black h-full flex flex-col items-center justify-center text-center p-12 relative overflow-hidden">
+             <div className="border-2 border-white bg-black h-full flex flex-col items-center justify-center text-center p-12 relative overflow-hidden animate-pulse transition-all duration-500">
                 <div className="absolute top-0 left-0 w-full h-1 bg-zinc-800">
                   <div className="h-full bg-white w-1/3 animate-[marquee_1s_linear_infinite]" />
                 </div>
@@ -397,27 +420,13 @@ export default function InvestmentDashboard({ onExit }) {
                   <div className="text-sm font-black uppercase tracking-widest mb-4 border-b-2 border-white pb-3 flex items-center gap-3">
                     <span className="text-xl">+</span> Why You Should Invest
                   </div>
-                  <ul className="space-y-3 h-[100px] overflow-y-auto custom-scrollbar pr-2">
-                    {parsedVerdict.pros.length > 0 ? parsedVerdict.pros.map((reason, i) => (
-                      <li key={i} className="flex gap-3 text-xs text-zinc-300 leading-relaxed">
-                        <div className="w-1.5 h-1.5 bg-white mt-1 shrink-0"></div>
-                        {reason}
-                      </li>
-                    )) : <li className="text-xs text-zinc-500">No strong reasons to invest identified.</li>}
-                  </ul>
+                  {renderList(parsedVerdict.pros?.length ? parsedVerdict.pros : parsedVerdict.reasonsToInvest || parsedVerdict.bullCase)}
                 </div>
                 <div className="border-2 border-zinc-800 bg-zinc-950 p-6">
                   <div className="text-sm font-black uppercase tracking-widest mb-4 border-b-2 border-zinc-800 pb-3 text-zinc-500 flex items-center gap-3">
                     <span className="text-xl">-</span> Risks to Keep in Mind
                   </div>
-                  <ul className="space-y-3 h-[100px] overflow-y-auto custom-scrollbar pr-2">
-                    {parsedVerdict.cons.length > 0 ? parsedVerdict.cons.map((reason, i) => (
-                      <li key={i} className="flex gap-3 text-xs text-zinc-400 leading-relaxed">
-                        <div className="w-1.5 h-1.5 border border-zinc-500 mt-1 shrink-0"></div>
-                        {reason}
-                      </li>
-                    )) : <li className="text-xs text-zinc-500">No major risks identified.</li>}
-                  </ul>
+                  {renderList(parsedVerdict.cons?.length ? parsedVerdict.cons : parsedVerdict.risks || parsedVerdict.bearCase)}
                 </div>
               </div>
               <div className="border-2 border-zinc-700 bg-black p-6 flex-1 flex flex-col min-h-0">
