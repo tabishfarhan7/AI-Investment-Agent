@@ -8,7 +8,7 @@ export async function judgeNode(state) {
 
   // Initializing the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-1.0-pro", 
+    model: "gemini-2.5-flash", 
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.1 // Keeping it low for strict, logical judgment
   });
