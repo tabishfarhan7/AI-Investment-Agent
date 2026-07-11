@@ -7,7 +7,7 @@ export async function newsNode(state) {
 
   // CHANGED: Initialize the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-1.5-flash",
+    model: "gemini-pro",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.2, // Slightly higher than 0 to allow the AI to read emotional market tones
   });
