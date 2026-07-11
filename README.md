@@ -1,111 +1,378 @@
 # SATORI_ // Multi-Agent Investment Protocol
 
-![React](https://img.shields.io/badge/React-000000?style=for-the-badge&logo=react&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-000000?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-000000?style=for-the-badge&logo=postgresql&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-000000?style=for-the-badge)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-000000?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-> **Absolute clarity in financial chaos.** Satori is an autonomous, multi-agent financial terminal designed to strip away market noise. It extracts fundamental truths, gauges real-time sentiment, and executes institutional-grade thesis validation.
+<p align="center">
+  <img src="https://img.shields.io/badge/React-000000?style=for-the-badge&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Node.js-000000?style=for-the-badge&logo=nodedotjs&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-000000?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/LangGraph-000000?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/TailwindCSS-000000?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+</p>
 
----
-
-## Visual Walkthrough & System Architecture
-
-Satori is designed to showcase complex AI orchestration (LangGraph) and real-time data streaming (Finnhub) wrapped in a brutalist, high-performance React frontend.
-
-### 1. The Command Center (Landing Interface)
-The entry point of the application utilizes a strict, monochrome "Swiss Design" aesthetic. This brutalist UI purposefully mimics high-end enterprise financial terminals, prioritizing data clarity and immediate user action over unnecessary visual clutter. 
-
-<div align="center">
-  <img src="./client/assets/01-home-hero.png" alt="Satori Home Dashboard" width="850"/>
-</div>
-
-### 2. Live Market Marquee
-Directly below the hero section, the application establishes a live connection to the Finnhub API. This infinitely scrolling marquee processes real-time quotes, calculates percentage changes against previous closes, and handles conditional rendering dynamically without causing main-thread stutter.
-
-<div align="center">
-  <img src="./client/assets/02-market-marquee.png" alt="Live Market Marquee" width="850"/>
-</div>
-
-### 3. Real-Time Market Velocity (SVG Engine)
-Instead of relying on heavy third-party charting libraries, Satori features a custom-built, sub-second SVG rendering engine. It polls live tick data and dynamically recalculates SVG paths to visualize institutional high-frequency data flows instantly.
-
-<div align="center">
-  <img src="./client/assets/03-live-graph.png" alt="Live SVG Market Graph" width="850"/>
-</div>
-
-### 4. Adversarial Debate & Human-in-the-Loop (HITL)
-**The core of the LangGraph architecture.** To eliminate LLM confirmation bias, the system spawns two opposing AI agents (Bull vs. Bear) that process the exact same scraped financial data. 
-* **The Pause:** The state machine intentionally halts execution before a final decision is made.
-* **Human Override:** The user is prompted to read the debate and inject dynamic operational constraints before the graph is allowed to resume.
-
-<div align="center">
-  <img src="./client/assets/04-hitl-debate.png" alt="Bull vs Bear Debate and HITL" width="850"/>
-</div>
-
-### 5. Judicial Synthesis & Final Verdict
-Once authorized by the human operator, a final "Judge" node consumes the adversarial debate and the human override constraints. It outputs a highly deterministic, JSON payload. The React frontend safely parses this raw data into a clean, actionable UI.
-
-<div align="center">
-  <img src="./client/assets/05-final-verdict.png" alt="Final Judicial Verdict" width="850"/>
-</div>
-
-### 6. Persistent State Memory (PostgreSQL Archive)
-When the LangGraph pauses for the HITL check, the workflow completely halts. To prevent data loss, the entire neural mesh state is serialized and written securely to a PostgreSQL database using `@langchain/langgraph-checkpoint-postgres`. The Archive UI directly queries this database to track historical session verdicts, confidence ratings, and persistent statuses.
-
-<div align="center">
-  <img src="./client/assets/55.png" alt="PostgreSQL Session Archive" width="850"/>
-</div>
-
----
-## 💻 Tech Stack & Infrastructure
-
-* **Frontend:** React (Vite), Tailwind CSS, Custom Mathematical SVG Charting
-* **Backend:** Node.js, Express.js
-* **AI / Orchestration:** LangGraph, LangChain, LLM APIs (Gemini/OpenAI)
-* **Database & Memory:** PostgreSQL (LangGraph Checkpointer & Session History)
-* **Data Integration:** Finnhub (Live Equity Data), Tavily (Real-time financial search)
+<p align="center">
+  <b>Absolute Clarity in Financial Chaos.</b><br>
+  
+  Autonomous Multi-Agent Financial Intelligence powered by LangGraph, LLMs, Real-Time Market Data, and Human-in-the-Loop Validation.
+</p>
 
 ---
 
-## 🛠️ Quick Start & Installation
+# Overview
 
-### 1. Clone the repository
-\`\`\`bash
-git clone https://github.com/yourusername/satori-investment-agent.git
-cd satori-investment-agent
-\`\`\`
+SATORI is an enterprise-grade **AI Investment Intelligence Platform** that simulates institutional investment workflows through autonomous agent collaboration.
 
-### 2. Environment Variables
-Create a `.env` file in the root directory and configure the following:
-\`\`\`env
-# Database Connection
-DATABASE_URL="postgresql://user:password@localhost:5432/satori"
+Instead of relying on a single LLM response, SATORI orchestrates multiple specialized AI agents that independently research, debate, validate, and synthesize financial information before producing a final investment recommendation.
 
-# API Keys
-VITE_FINNHUB_API_KEY="your_finnhub_key"
-OPENAI_API_KEY="your_llm_key"
-TAVILY_API_KEY="your_search_key"
-\`\`\`
+The application combines:
 
-### 3. Install Dependencies
-\`\`\`bash
-# Install backend dependencies
+- Autonomous AI Agents
+- LangGraph State Machines
+- Human-in-the-Loop Approval
+- Real-Time Market Data
+- Persistent PostgreSQL Memory
+- Modern React Dashboard
+
+The result is a transparent financial reasoning engine rather than a black-box chatbot.
+
+---
+
+# Architecture
+
+```
+                     User Query
+                          │
+                          ▼
+                ┌───────────────────┐
+                │ Supervisor Agent  │
+                └─────────┬─────────┘
+                          │
+        ┌─────────────────┼─────────────────┐
+        ▼                 ▼                 ▼
+ Research Agent     Bull Analyst      Bear Analyst
+        │                 │                 │
+        └────────────┬────┴────┬────────────┘
+                     ▼
+            Human-In-The-Loop
+               (Pause State)
+                     │
+                     ▼
+               Judge Agent
+                     │
+                     ▼
+           Final Investment Report
+                     │
+                     ▼
+             PostgreSQL Memory
+```
+
+---
+
+# Features
+
+- Multi-Agent LangGraph Workflow
+- Human-in-the-Loop (HITL) Validation
+- Live Market Data using Finnhub API
+- AI Financial Research
+- Bull vs Bear Debate
+- AI Judge Decision Engine
+- Persistent PostgreSQL Session History
+- Custom SVG Live Graph Engine
+- Institutional Dashboard UI
+- Responsive React Frontend
+- Express Backend API
+
+---
+
+# Visual Walkthrough
+
+## 1. Landing Dashboard
+
+The landing page follows a brutalist monochrome design inspired by institutional trading terminals. The interface emphasizes readability, clarity, and performance while minimizing visual distractions.
+
+<p align="center">
+<img src="./client/src/assets/01-home-hero.png" width="900">
+</p>
+
+---
+
+## 2. Live Market Marquee
+
+Real-time market quotes stream continuously using the Finnhub API.
+
+The scrolling ticker calculates:
+
+- Current Price
+- Previous Close
+- Percentage Change
+- Gain/Loss Status
+
+without interrupting rendering performance.
+
+<p align="center">
+<img src="./client/src/assets/02-market-marquee.png" width="900">
+</p>
+
+---
+
+## 3. Live SVG Market Engine
+
+Instead of depending on external charting libraries, SATORI renders market movements using dynamically generated SVG paths.
+
+Advantages include:
+
+- Lightweight Rendering
+- High FPS
+- Real-Time Updates
+- No Chart.js Dependency
+
+<p align="center">
+<img src="./client/src/assets/03-live-graph.png" width="900">
+</p>
+
+---
+
+## 4. Bull vs Bear Debate
+
+To minimize confirmation bias, SATORI launches two opposing investment analysts.
+
+### Bull Agent
+
+- Positive Catalysts
+- Growth Drivers
+- Upside Potential
+
+### Bear Agent
+
+- Risks
+- Market Weakness
+- Downside Scenarios
+
+Execution intentionally pauses before generating the final decision, allowing a human operator to review both arguments.
+
+<p align="center">
+<img src="./client/src/assets/04-hitl-debate.png" width="900">
+</p>
+
+---
+
+## 5. Judge Agent
+
+After human approval, the Judge Agent consumes:
+
+- Bull Analysis
+- Bear Analysis
+- User Constraints
+
+and produces a structured investment verdict including:
+
+- Recommendation
+- Confidence Score
+- Risk Assessment
+- Supporting Evidence
+
+<p align="center">
+<img src="./client/src/assets/05-final-verdict.png" width="900">
+</p>
+
+---
+
+## 6. PostgreSQL Session Archive
+
+Every LangGraph checkpoint is persisted into PostgreSQL using the LangGraph Checkpointer.
+
+Historical sessions remain accessible, allowing users to revisit previous analyses and investment decisions.
+
+Stored information includes:
+
+- Company
+- Timestamp
+- Confidence
+- Verdict
+- Session Status
+
+<p align="center">
+<img src="./client/src/assets/55.png" width="900">
+</p>
+
+---
+
+# Tech Stack
+
+## Frontend
+
+- React
+- Vite
+- Tailwind CSS
+- Framer Motion
+- SVG Rendering Engine
+
+## Backend
+
+- Node.js
+- Express.js
+
+## AI
+
+- LangGraph
+- LangChain
+- OpenAI
+- Gemini
+
+## Database
+
+- PostgreSQL
+- LangGraph Checkpointer
+
+## APIs
+
+- Finnhub
+- Tavily Search
+
+---
+
+# Folder Structure
+
+```
+AI-INVESTMENT-AGENT
+│
+├── client
+│   ├── src
+│   │   ├── assets
+│   │   ├── components
+│   │   ├── lib
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   │
+│   ├── public
+│   └── package.json
+│
+├── server
+│
+├── .env
+├── package.json
+└── README.md
+```
+
+---
+
+# Environment Variables
+
+Create a `.env` file in the root directory.
+
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/satori
+
+OPENAI_API_KEY=YOUR_OPENAI_KEY
+
+GOOGLE_API_KEY=YOUR_GEMINI_KEY
+
+TAVILY_API_KEY=YOUR_TAVILY_KEY
+
+VITE_FINNHUB_API_KEY=YOUR_FINNHUB_KEY
+```
+
+---
+
+# Installation
+
+Clone the repository
+
+```bash
+git clone https://github.com/your-username/AI-INVESTMENT-AGENT.git
+```
+
+Move into the project
+
+```bash
+cd AI-INVESTMENT-AGENT
+```
+
+Install backend dependencies
+
+```bash
 npm install
+```
 
-# Install frontend dependencies
+Install frontend dependencies
+
+```bash
 cd client
 npm install
-\`\`\`
-
-### 4. Boot Sequence
-Start both the backend and frontend concurrently:
-\`\`\`bash
-# From the root directory
-npm run dev
-\`\`\`
+```
 
 ---
-**Author:** Mohammad Tabish  
-**License:** MIT
+
+# Running the Application
+
+Backend
+
+```bash
+npm run dev
+```
+
+Frontend
+
+```bash
+cd client
+npm run dev
+```
+
+---
+
+# Workflow
+
+1. User enters a company name.
+
+2. Supervisor Agent creates the workflow.
+
+3. Research Agent gathers live financial information.
+
+4. Bull Agent generates optimistic analysis.
+
+5. Bear Agent generates risk analysis.
+
+6. LangGraph pauses execution.
+
+7. Human reviews debate.
+
+8. Judge Agent synthesizes every perspective.
+
+9. Final investment recommendation is generated.
+
+10. Session is stored permanently inside PostgreSQL.
+
+---
+
+# Future Improvements
+
+- Portfolio Management
+- Watchlists
+- RAG Financial Memory
+- PDF Investment Reports
+- Authentication
+- Multi-user Dashboard
+- TradingView Integration
+- Portfolio Risk Analytics
+
+---
+
+# Author
+
+**Mohammad Tabish**
+
+GitHub: https://github.com/tabishfarhan7
+
+LinkedIn: https://linkedin.com/in/tabishfarhan7
+
+---
+
+# License
+
+Licensed under the MIT License.
+
+---
+
+<p align="center">
+<b>SATORI</b><br>
+Institutional Intelligence. Autonomous Reasoning. Human Oversight.
+</p>
