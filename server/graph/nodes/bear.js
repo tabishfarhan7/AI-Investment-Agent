@@ -6,7 +6,7 @@ export async function bearNode(state) {
 
   // CHANGED: Initializing the Gemini model instead of OpenAI
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-pro",
+    model: "gemini-1.0-pro",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.5 
   });

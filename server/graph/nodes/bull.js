@@ -6,7 +6,7 @@ export async function bullNode(state) {
 
   // CHANGED: Initializing the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
-    model: "gemini-pro",
+    model: "gemini-1.0-pro",
     apiKey: process.env.GEMINI_API_KEY,
     temperature: 0.5 
   });
