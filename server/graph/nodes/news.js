@@ -5,14 +5,12 @@ export async function newsNode(state) {
   const { companyName } = state;
   console.log(`[Node: Sentiment Analyst] Scouting current market events for ${companyName}...`);
 
-  // CHANGED: Initialize the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,
-    temperature: 0.2, // Slightly higher than 0 to allow the AI to read emotional market tones
+    temperature: 0.2,
   });
 
-  // Query specifically tailored for recent news and public perception
   const searchQuery = `${companyName} latest news headlines market sentiment public opinion product controversies breaking updates`;
   
   const rawData = await webSearchTool.invoke({ query: searchQuery });

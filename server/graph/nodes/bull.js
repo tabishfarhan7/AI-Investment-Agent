@@ -4,7 +4,6 @@ export async function bullNode(state) {
   const { companyName, fundamentalData, newsData } = state;
   console.log(`[Node: Bull] Constructing positive investment thesis for ${companyName}...`);
 
-  // CHANGED: Initializing the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,

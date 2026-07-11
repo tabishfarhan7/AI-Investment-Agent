@@ -4,7 +4,6 @@ export async function bearNode(state) {
   const { companyName, fundamentalData, newsData } = state;
   console.log(`[Node: Bear] Constructing negative risk analysis for ${companyName}...`);
 
-  // CHANGED: Initializing the Gemini model instead of OpenAI
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash",
     apiKey: process.env.GEMINI_API_KEY,

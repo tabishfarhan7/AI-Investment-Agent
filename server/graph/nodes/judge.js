@@ -2,20 +2,17 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { VerdictSchema } from "../state.js"; 
 
 export async function judgeNode(state) {
-  // Extract humanOverride from the state notebook
   const { companyName, fundamentalData, newsData, bullCase, bearCase, humanOverride } = state;
   console.log(`[Node: Judge] Making final decision for ${companyName}...`);
 
-  // Initializing the Gemini model with your API key
   const model = new ChatGoogleGenerativeAI({
     model: "gemini-2.5-flash", 
     apiKey: process.env.GEMINI_API_KEY,
-    temperature: 0.1 // Keeping it low for strict, logical judgment
+    temperature: 0.1
   });
   
   const structuredModel = model.withStructuredOutput(VerdictSchema);
 
-  // Updated prompt to force the Judge to process human context
   const prompt = `You are the Lead Investment Judge making a final decision on ${companyName}.
   
   Raw Evidence Gathered:

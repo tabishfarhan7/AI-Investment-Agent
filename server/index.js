@@ -15,7 +15,6 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
-// Create the table automatically if it doesn't exist
 const initializeDB = async () => {
   try {
     await pool.query(`
@@ -46,7 +45,6 @@ app.post('/api/research/start', async (req, res) => {
   console.log(`\n[API: Start] Initiating persistent thread [${threadId}] for ${company}...`);
 
   try {
-    // 1. Save initial pending state to our custom table
     await pool.query(
       `INSERT INTO ai_sessions (session_id, company, status) VALUES ($1, $2, $3) ON CONFLICT (session_id) DO NOTHING`,
       [threadId, company, 'PAUSED']
@@ -98,7 +96,6 @@ app.post('/api/research/resume', async (req, res) => {
     const updatedGraphState = await researchGraph.getState(config);
     const finalData = updatedGraphState.values.finalVerdict;
 
-    // 2. Parse the final verdict to update our database
     let verdictText = "UNKNOWN";
     let isPositive = false;
     let confidence = "--";
@@ -119,7 +116,6 @@ app.post('/api/research/resume', async (req, res) => {
        confidence = parsed.confidence || parsed.confidenceMeter || "--";
     }
 
-    // 3. Update the custom table with the final results!
     await pool.query(
       `UPDATE ai_sessions SET verdict = $1, confidence = $2, status = $3, is_positive = $4 WHERE session_id = $5`,
       [verdictText, confidence, 'COMPLETE', isPositive, threadId]
