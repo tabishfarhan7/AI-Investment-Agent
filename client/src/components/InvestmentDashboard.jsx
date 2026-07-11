@@ -12,7 +12,7 @@ export default function InvestmentDashboard({ onExit }) {
   const [logs, setLogs] = useState([]);
   const logEndRef = useRef(null);
 
-  const API_BASE = "http://localhost:5000/api/research";
+  const API_BASE = "https://ai-investment-agent-ozmh.onrender.com/api/research";
 
   useEffect(() => {
     if (logEndRef.current) {

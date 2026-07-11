@@ -7,7 +7,7 @@ export default function SessionArchive({ onExit }) {
   const [error, setError] = useState(null);
 
   // Ensure this matches your backend URL
-  const API_URL = "http://localhost:5000/api/sessions"; 
+  const API_URL = "https://ai-investment-agent-ozmh.onrender.com/api/sessions"; 
 
   const normalizeVerdict = (session) => {
     const verdict = String(session.verdict || "").toUpperCase();
